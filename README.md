@@ -8,23 +8,17 @@ A monitoring solution for Docker hosts and containers with [Prometheus](https://
 Clone this repository on your Docker host, cd into dockprom directory and run compose up:
 
 ```bash
-git clone https://github.com/stefanprodan/dockprom
-cd dockprom
+git clone https://github.com/t0mer/grafana-stack
+cd grafana-stack
 
-ADMIN_USER='admin' ADMIN_PASSWORD='admin' ADMIN_PASSWORD_HASH='$2a$14$1l.IozJx7xQRVmlkEQ32OeEEfP5mRxTpbDTCTcXRqn19gXD8YK1pO' docker-compose up -d
+ADMIN_USER='admin' ADMIN_PASSWORD='admin' docker-compose up -d
 ```
-
-**Caddy v2 does not accept plaintext passwords. It MUST be provided as a hash value. The above password hash corresponds to ADMIN_PASSWORD 'admin'. To know how to generate hash password, refer [Updating Caddy to v2](#Updating-Caddy-to-v2)**
 
 Prerequisites:
 
 * Docker Engine >= 1.13
 * Docker Compose >= 1.11
 
-## Updating Caddy to v2
-
-Perform a `docker run --rm caddy caddy hash-password --plaintext 'ADMIN_PASSWORD'` in order to generate a hash for your new password.
-ENSURE that you replace `ADMIN_PASSWORD` with new plain text password and `ADMIN_PASSWORD_HASH` with the hashed password references in [docker-compose.yml](./docker-compose.yml) for the caddy container.
 
 Containers:
 
@@ -32,9 +26,10 @@ Containers:
 * Prometheus-Pushgateway (push acceptor for ephemeral and batch jobs) `http://<host-ip>:9091`
 * AlertManager (alerts management) `http://<host-ip>:9093`
 * Grafana (visualize metrics) `http://<host-ip>:3000`
+* InfluxDB (high-speed read and write time series database) `http://<host-ip>:8086`
 * NodeExporter (host metrics collector)
 * cAdvisor (containers metrics collector)
-* Caddy (reverse proxy and basic auth provider for prometheus and alertmanager)
+
 
 ## Setup Grafana
 
@@ -66,11 +61,10 @@ Grafana is preconfigured with dashboards and Prometheus as the default data sour
 * Name: Prometheus
 * Type: Prometheus
 * Url: [http://prometheus:9090](http://prometheus:9090)
-* Access: proxy
 
 ***Docker Host Dashboard***
 
-![Host](https://raw.githubusercontent.com/stefanprodan/dockprom/master/screens/Grafana_Docker_Host.png)
+![Host](https://raw.githubusercontent.com/t0mer/grafana-stack/master/screens/Grafana_Docker_Host.png)
 
 The Docker Host Dashboard shows key metrics for monitoring the resource usage of your server:
 
@@ -99,7 +93,7 @@ node_filesystem_free_bytes
 
 ***Docker Containers Dashboard***
 
-![Containers](https://raw.githubusercontent.com/stefanprodan/dockprom/master/screens/Grafana_Docker_Containers.png)
+![Containers](https://raw.githubusercontent.com/t0mer/grafana-stack/master/screens/Grafana_Docker_Containers.png)
 
 The Docker Containers Dashboard shows key metrics for monitoring running containers:
 
@@ -131,7 +125,7 @@ node_filesystem_free_bytes
 
 ***Monitor Services Dashboard***
 
-![Monitor Services](https://raw.githubusercontent.com/stefanprodan/dockprom/master/screens/Grafana_Prometheus.png)
+![Monitor Services](https://raw.githubusercontent.com/t0mer/grafana-stack/master/screens/Grafana_Prometheus.png)
 
 The Monitor Services Dashboard shows key metrics for monitoring the containers that make up the monitoring stack:
 
@@ -146,11 +140,11 @@ The Monitor Services Dashboard shows key metrics for monitoring the containers t
 
 ## Define alerts
 
-Three alert groups have been setup within the [alert.rules](https://github.com/stefanprodan/dockprom/blob/master/prometheus/alert.rules) configuration file:
+Three alert groups have been setup within the [alert.rules](https://github.com/t0mer/grafana-stack/blob/main/prometheus/alert.rules) configuration file:
 
-* Monitoring services alerts [targets](https://github.com/stefanprodan/dockprom/blob/master/prometheus/alert.rules#L2-L11)
-* Docker Host alerts [host](https://github.com/stefanprodan/dockprom/blob/master/prometheus/alert.rules#L13-L40)
-* Docker Containers alerts [containers](https://github.com/stefanprodan/dockprom/blob/master/prometheus/alert.rules#L42-L69)
+* Monitoring services alerts [targets](https://github.com/t0mer/grafana-stack/blob/main/prometheus/alert.rules#L2-L11)
+* Docker Host alerts [host](https://github.com/t0mer/grafana-stack/blob/main/prometheus/alert.rules#L13-L40)
+* Docker Containers alerts [containers](https://github.com/t0mer/grafana-stack/blob/main/prometheus/alert.rules#L42-L69)
 
 You can modify the alert rules and reload them by making a HTTP POST call to Prometheus:
 
@@ -265,7 +259,7 @@ A complete list of integrations can be found [here](https://prometheus.io/docs/a
 
 You can view and silence notifications by accessing `http://<host-ip>:9093`.
 
-The notification receivers can be configured in [alertmanager/config.yml](https://github.com/stefanprodan/dockprom/blob/master/alertmanager/config.yml) file.
+The notification receivers can be configured in [alertmanager/config.yml](https://github.com/t0mer/grafana-stack/blob/master/alertmanager/config.yml) file.
 
 To receive alerts via Slack you need to make a custom integration by choose ***incoming web hooks*** in your Slack team app page.
 You can find more details on setting up Slack integration [here](http://www.robustperception.io/using-slack-with-the-alertmanager/).
@@ -286,7 +280,7 @@ receivers:
             api_url: 'https://hooks.slack.com/services/<webhook-id>'
 ```
 
-![Slack Notifications](https://raw.githubusercontent.com/stefanprodan/dockprom/master/screens/Slack_Notifications.png)
+![Slack Notifications](https://raw.githubusercontent.com/t0mer/grafana-stack/master/screens/Slack_Notifications.png)
 
 ## Sending metrics to the Pushgateway
 
@@ -325,9 +319,9 @@ First perform a `docker-compose down` then modify your docker-compose.yml to inc
     image: grafana/grafana:5.2.2
     container_name: grafana
     volumes:
-      - grafana_data:/var/lib/grafana
-      - ./grafana/datasources:/etc/grafana/datasources
-      - ./grafana/dashboards:/etc/grafana/dashboards
+      - ./grafana/data:/var/lib/grafana
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
       - ./grafana/setup.sh:/setup.sh
     entrypoint: /setup.sh
     user: root
@@ -336,10 +330,8 @@ First perform a `docker-compose down` then modify your docker-compose.yml to inc
       - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
     restart: unless-stopped
-    expose:
-      - 3000
-    networks:
-      - monitor-net
+    ports:
+      - 3000:3000
     labels:
       org.label-schema.group: "monitoring"
 ```
@@ -363,9 +355,9 @@ To run the grafana container as `user: 104` change your `docker-compose.yml` lik
     image: grafana/grafana:5.2.2
     container_name: grafana
     volumes:
-      - grafana_data:/var/lib/grafana
-      - ./grafana/datasources:/etc/grafana/datasources
-      - ./grafana/dashboards:/etc/grafana/dashboards
+      - ./grafana/data:/var/lib/grafana
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
       - ./grafana/setup.sh:/setup.sh
     entrypoint: /setup.sh
     user: "104"
@@ -374,10 +366,8 @@ To run the grafana container as `user: 104` change your `docker-compose.yml` lik
       - GF_SECURITY_ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin}
       - GF_USERS_ALLOW_SIGN_UP=false
     restart: unless-stopped
-    expose:
-      - 3000
-    networks:
-      - monitor-net
+    ports:
+      - 3000:3000
     labels:
       org.label-schema.group: "monitoring"
 ```
