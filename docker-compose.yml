@@ -20,7 +20,8 @@ services:
       - 9090:9000
     labels:
       org.label-schema.group: "monitoring"
-
+    networks:
+      - monitor-net
 
   influxdb:
     image: influxdb:1.8.1
@@ -37,6 +38,8 @@ services:
       - ./influxdb/influxdb.conf:/etc/influxdb/influxdb.conf
     labels:
       org.label-schema.group: "monitoring"
+    networks:
+      - monitor-net
 
 
   alertmanager:
@@ -53,7 +56,8 @@ services:
       - 9093:9093
     labels:
       org.label-schema.group: "monitoring"
-
+    networks:
+      - monitor-net
 
   nodeexporter:
     image: prom/node-exporter:v1.6.0
@@ -72,7 +76,10 @@ services:
       - 9100:9100
     labels:
       org.label-schema.group: "monitoring"
+    networks:
+      - monitor-net
 
+      
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:v0.47.1
     container_name: cadvisor
@@ -90,7 +97,9 @@ services:
       - 8080:8080
     labels:
       org.label-schema.group: "monitoring"
-
+    networks:
+      - monitor-net
+      
   grafana:
     image: grafana/grafana:10.0.1
     container_name: grafana
@@ -107,7 +116,9 @@ services:
       - 3000:3000
     labels:
       org.label-schema.group: "monitoring"
-
+    networks:
+      - monitor-net
+      
   pushgateway:
     image: prom/pushgateway:v1.6.0
     container_name: pushgateway
@@ -116,4 +127,9 @@ services:
       - 9091:9091
     labels:
       org.label-schema.group: "monitoring"
-
+    networks:
+      - monitor-net
+      
+networks:
+  monitor-net:
+    driver: bridge
